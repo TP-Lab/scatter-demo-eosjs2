@@ -1,47 +1,256 @@
 <template>
   <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+    <h1>scatter demo with eosjs2</h1>
+
+    <p>{{currentAccount}}</p>
+
+    <button @click="login">login</button>
+
+    <button @click="logout">logout</button>
+
+    <br>
+
+    <button @click="getPubkey">getPubkey</button>
+
+    <button @click="account">account('eos')</button>
+
+    <button @click="linkAccount">linkAccount</button>
+    <br>
+
+    <button @click="transfer()">transfer</button>
+
+    <button @click="stake()">stake cpu</button>
+    <br>
+    <button @click="requestTransfer">requestTransfer</button>
+    <button @click="getIdentityFromPermissions">getIdentityFromPermissions</button>
   </div>
 </template>
 
 <script>
+import { Api, JsonRpc, RpcError } from "eosjs";
+import ScatterJS from "scatterjs-core";
+import ScatterEOS from "scatterjs-plugin-eosjs2";
+import VConsole from "vconsole";
+var vConsole = new VConsole();
+const network = ScatterJS.Network.fromJson({
+  blockchain: "eos",
+  chainId: "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
+  host: "nodes.get-scatter.com",
+  port: 443,
+  protocol: "https"
+});
+
+const requiredFields = { accounts: [network] };
+
+let scatter = "";
+let api = "";
+
+ScatterJS.plugins(new ScatterEOS());
+
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
+  name: "HelloWorld",
+  data() {
+    return {
+      msg: "Welcome to Your Vue.js App",
+      currentAccount: "",
+      currentPermission: "",
+      currentPublicKey: ""
+    };
+  },
+  created() {
+    ScatterJS.scatter.connect("scatter-demo").then(connected => {
+      if (!connected) {
+        alert("no connect");
+        return false;
+      }
+
+      alert("connected");
+      scatter = ScatterJS.scatter;
+    });
+  },
+
+  methods: {
+    requestTransfer: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      const tokenDetails = {
+        contract: "eosiotptoken",
+        symbol: "TPT",
+        memo: "test donate",
+        decimals: 4
+      };
+      scatter
+        .requestTransfer(network, "itokenpocket", "0.0001", tokenDetails)
+        .then(res => alert(res));
+    },
+    account: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      alert(JSON.stringify(scatter.account("eos")));
+    },
+    transfer: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      api
+        .transact(
+          {
+            actions: [
+              {
+                account: "eosio.token",
+                name: "transfer",
+                authorization: [
+                  {
+                    actor: this.currentAccount,
+                    permission: this.currentPermission
+                  }
+                ],
+                data: {
+                  from: this.currentAccount,
+                  to: "itokenpocket",
+                  quantity: "0.0001 EOS",
+                  memo: "test eosjs2"
+                }
+              }
+            ]
+          },
+          {
+            blocksBehind: 3,
+            expireSeconds: 30
+          }
+        )
+        .then(res => {
+          alert("yes" + res);
+        })
+        .catch(err => {
+          console.log("fail" + JSON.stringify(err));
+        });
+    },
+    stake: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      api
+        .transact(
+          {
+            actions: [
+              {
+                account: "eosio",
+                name: "delegatebw",
+                authorization: [
+                  {
+                    actor: this.currentAccount,
+                    permission: this.currentPermission
+                  }
+                ],
+                data: {
+                  from: this.currentAccount,
+                  receiver: this.currentAccount,
+                  stake_cpu_quantity: "0.0001 EOS",
+                  stake_net_quantity: "0.0001 EOS",
+                  transfer: false
+                }
+              }
+            ]
+          },
+          {
+            blocksBehind: 3,
+            expireSeconds: 30
+          }
+        )
+        .then(data => {
+          alert(JSON.stringify(data));
+        })
+        .catch(err => {
+          console.log(JSON.stringify(err));
+        });
+    },
+    logout: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      scatter.logout().then(a => alert(a));
+    },
+    login: function() {
+      scatter
+        .login(requiredFields)
+        .then(id => {
+          const account = scatter.identity.accounts.find(
+            x => x.blockchain === "eos"
+          );
+
+          this.currentAccount = account.name;
+          this.currentPermission = account.authority;
+          this.currentPublicKey = account.publicKey;
+
+          alert("get account:" + JSON.stringify(account));
+
+          const eosOptions = { expireInSeconds: 60 };
+
+          const rpc = new JsonRpc("https://mainnet.eoscanada.com", {
+            fetch
+          });
+
+          api = scatter.eos(network, Api, { rpc, beta3: true });
+        })
+        .catch(error => {
+          alert("get identity error");
+          console.error(error);
+        });
+    },
+    getPubkey: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      scatter.getPublicKey("eos").then(publicKey => {
+        alert(publicKey);
+      });
+    },
+    linkAccount: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      let account = {
+        name: this.currentAccount,
+        authority: this.currentPermission,
+        publicKey: this.currentPublicKey
+      };
+      scatter.linkAccount(account, network).then(linked => {
+        alert(linked);
+      });
+    },
+    getIdentityFromPermissions: function() {
+      if (!this.currentAccount) {
+        alert("login first");
+        return;
+      }
+      scatter
+        .getIdentityFromPermissions()
+        .then(identity => {
+          alert(JSON.stringify(identity));
+        })
+        .catch(err => {
+          console.log(err);
+        });
+    }
   }
-}
+};
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped lang="less">
-h3 {
-  margin: 40px 0 0;
+<style scoped>
+h1,
+h2 {
+  font-weight: normal;
 }
 ul {
   list-style-type: none;
@@ -53,5 +262,14 @@ li {
 }
 a {
   color: #42b983;
+}
+
+button {
+  margin: 10px;
+  padding: 8px 20px;
+  background-color: #efefef;
+  border-radius: 30px;
+  outline: none;
+  border: none;
 }
 </style>
