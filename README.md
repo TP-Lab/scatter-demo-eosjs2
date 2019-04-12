@@ -1,5 +1,11 @@
 # scatter-demo-eosjs2
 
+scatter demo with eosjs2 
+
+You can test it in TokenPocket Dapp Browser
+
+[Online demo](https://tp-lab.tokenpocket.pro/scatter-demo-eosjs2/index.html) 
+
 ## Project setup
 ```
 npm install
@@ -14,16 +20,3 @@ npm run serve
 ```
 npm run build
 ```
-
-### Run your tests
-```
-npm run test
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
