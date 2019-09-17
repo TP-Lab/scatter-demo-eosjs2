@@ -4,34 +4,41 @@
 
     <p>{{currentAccount}}</p>
 
+    <button @click="connect">connect</button>
+
     <button @click="login">login</button>
 
     <button @click="logout">logout</button>
 
-    <br>
+    <br />
 
     <button @click="getPubkey">getPubkey</button>
 
     <button @click="account">account('eos')</button>
 
     <button @click="linkAccount">linkAccount</button>
-    <br>
+    <br />
 
     <button @click="transfer()">transfer</button>
 
     <button @click="stake()">stake cpu</button>
-    <br>
+    <br />
     <button @click="requestTransfer">requestTransfer</button>
     <button @click="getIdentityFromPermissions">getIdentityFromPermissions</button>
+
+    <br />
+    <button @click="authenticate()">authenticate</button>
   </div>
 </template>
 
 <script>
-import { Api, JsonRpc, RpcError } from "eosjs";
-import ScatterJS from "scatterjs-core";
-import ScatterEOS from "scatterjs-plugin-eosjs2";
+import ScatterJS from "@scatterjs/core";
+import ScatterEOS from "@scatterjs/eosjs2";
+import { JsonRpc, Api } from "eosjs";
+
 import VConsole from "vconsole";
 var vConsole = new VConsole();
+
 const network = ScatterJS.Network.fromJson({
   blockchain: "eos",
   chainId: "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
@@ -39,6 +46,8 @@ const network = ScatterJS.Network.fromJson({
   port: 443,
   protocol: "https"
 });
+
+const rpc = new JsonRpc(network.fullhost());
 
 const requiredFields = { accounts: [network] };
 
@@ -51,14 +60,13 @@ export default {
   name: "HelloWorld",
   data() {
     return {
-      msg: "Welcome to Your Vue.js App",
       currentAccount: "",
       currentPermission: "",
       currentPublicKey: ""
     };
   },
   created() {
-    ScatterJS.scatter.connect("scatter-demo").then(connected => {
+    ScatterJS.scatter.connect("scatter-demo", { network }).then(connected => {
       if (!connected) {
         alert("no connect");
         return false;
@@ -70,6 +78,27 @@ export default {
   },
 
   methods: {
+    connect: function() {
+      ScatterJS.scatter.connect("scatter-demo").then(connected => {
+        if (!connected) {
+          alert("no connect");
+          return false;
+        }
+
+        alert("connected");
+        // scatter = ScatterJS.scatter;
+      });
+    },
+    authenticate: function() {
+      scatter
+        .authenticate("111222333444")
+        .then(signedOrigin => {
+          alert(signedOrigin);
+        })
+        .catch(failedAuthentication => {
+          alert(failedAuthentication);
+        });
+    },
     requestTransfer: function() {
       if (!this.currentAccount) {
         alert("login first");
@@ -128,6 +157,7 @@ export default {
           alert("yes" + res);
         })
         .catch(err => {
+          alert("fail" + err);
           console.log("fail" + JSON.stringify(err));
         });
     },
@@ -180,7 +210,7 @@ export default {
     },
     login: function() {
       scatter
-        .login(requiredFields)
+        .login()
         .then(id => {
           const account = scatter.identity.accounts.find(
             x => x.blockchain === "eos"
@@ -192,13 +222,7 @@ export default {
 
           alert("get account:" + JSON.stringify(account));
 
-          const eosOptions = { expireInSeconds: 60 };
-
-          const rpc = new JsonRpc("https://mainnet.eoscanada.com", {
-            fetch
-          });
-
-          api = scatter.eos(network, Api, { rpc, beta3: true });
+          api = scatter.eos(network, Api, { rpc });
         })
         .catch(error => {
           alert("get identity error");
@@ -239,7 +263,7 @@ export default {
           alert(JSON.stringify(identity));
         })
         .catch(err => {
-          console.log(err);
+          alert(err);
         });
     }
   }
